@@ -24,7 +24,7 @@ fn main() {
         });
 
         for _ in 0..msg_num {
-            main_rx.recv().unwrap();
+            main_rx.recv_blocking().unwrap();
         }
     }
 }

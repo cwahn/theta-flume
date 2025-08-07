@@ -4,7 +4,7 @@ async fn main() {
     let (tx, rx) = theta_flume::bounded(1);
 
     let t = async_std::task::spawn(async move {
-        while let Ok(msg) = rx.recv_async().await {
+        while let Some(msg) = rx.recv().await {
             println!("Received: {}", msg);
         }
     });

@@ -31,6 +31,7 @@ spin1 = { package = "spin", version = "0.9.8", features = ["mutex"] }
 futures-sink = { version = "0.3", default-features = false }
 futures-core = { version = "0.3", default-features = false }
 fastrand = { version = "2.3", features = ["std", "js"], optional = true }
+uuid = { version = "1.17.0", features = ["v4"] }
 
 [dev-dependencies]
 #flume-test = { path = "../flume-test" }

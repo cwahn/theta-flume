@@ -1,10 +1,16 @@
 #[cfg(not(target_os = "unknown"))]
 use {
-    theta_flume::*,
-    futures::{stream::FuturesUnordered, StreamExt, TryFutureExt, Future},
-    futures::task::{Context, Waker, Poll},
     async_std::prelude::FutureExt,
-    std::{time::Duration, sync::{atomic::{AtomicUsize, Ordering}, Arc}},
+    futures::task::{Context, Poll, Waker},
+    futures::{stream::FuturesUnordered, Future, StreamExt, TryFutureExt},
+    std::{
+        sync::{
+            atomic::{AtomicUsize, Ordering},
+            Arc,
+        },
+        time::Duration,
+    },
+    theta_flume::*,
 };
 
 #[cfg(not(target_os = "unknown"))]
@@ -18,7 +24,7 @@ fn r#async_recv() {
     });
 
     async_std::task::block_on(async {
-        assert_eq!(rx.recv_async().await.unwrap(), 42);
+        assert_eq!(rx.recv().await.unwrap(), 42);
     });
 
     t.join().unwrap();
@@ -31,7 +37,7 @@ fn r#async_send() {
 
     let t = std::thread::spawn(move || {
         std::thread::sleep(std::time::Duration::from_millis(250));
-        assert_eq!(rx.recv(), Ok(42));
+        assert_eq!(rx.recv_blocking(), Some(42));
     });
 
     async_std::task::block_on(async {
@@ -52,7 +58,7 @@ fn r#async_recv_disconnect() {
     });
 
     async_std::task::block_on(async {
-        assert_eq!(rx.recv_async().await, Err(RecvError::Disconnected));
+        assert_eq!(rx.recv().await, None);
     });
 
     t.join().unwrap();
@@ -80,19 +86,16 @@ fn r#async_send_disconnect() {
 fn r#async_recv_drop_recv() {
     let (tx, rx) = bounded::<i32>(10);
 
-    let recv_fut = rx.recv_async();
+    let recv_fut = rx.recv();
 
     async_std::task::block_on(async {
-        let res = async_std::future::timeout(std::time::Duration::from_millis(500), rx.recv_async()).await;
+        let res =
+            async_std::future::timeout(std::time::Duration::from_millis(500), rx.recv()).await;
         assert!(res.is_err());
     });
 
     let rx2 = rx.clone();
-    let t = std::thread::spawn(move || {
-        async_std::task::block_on(async {
-            rx2.recv_async().await
-        })
-    });
+    let t = std::thread::spawn(move || async_std::task::block_on(async { rx2.recv().await }));
 
     std::thread::sleep(std::time::Duration::from_millis(500));
 
@@ -100,7 +103,7 @@ fn r#async_recv_drop_recv() {
 
     drop(recv_fut);
 
-    assert_eq!(t.join().unwrap(), Ok(42))
+    assert_eq!(t.join().unwrap(), Some(42))
 }
 
 #[cfg(not(target_os = "unknown"))]
@@ -108,9 +111,7 @@ fn r#async_recv_drop_recv() {
 async fn r#async_send_1_million_no_drop_or_reorder() {
     #[derive(Debug)]
     enum Message {
-        Increment {
-            old: u64,
-        },
+        Increment { old: u64 },
         ReturnCount,
     }
 
@@ -119,7 +120,7 @@ async fn r#async_send_1_million_no_drop_or_reorder() {
     let t = async_std::task::spawn(async move {
         let mut count = 0u64;
 
-        while let Ok(Message::Increment { old }) = rx.recv_async().await {
+        while let Some(Message::Increment { old }) = rx.recv().await {
             assert_eq!(old, count);
             count += 1;
         }
@@ -151,20 +152,18 @@ async fn parallel_async_receivers() {
     async_std::task::spawn(
         send_fut
             .timeout(Duration::from_secs(5))
-            .map_err(|_| panic!("Send timed out!"))
+            .map_err(|_| panic!("Send timed out!")),
     );
 
     let mut futures_unordered = (0..250)
         .map(|_| async {
-            while let Ok(()) = rx.recv_async().await
+            while let Some(()) = rx.recv().await
             /* rx.recv() is OK */
             {}
         })
         .collect::<FuturesUnordered<_>>();
 
-    let recv_fut = async {
-        while futures_unordered.next().await.is_some() {}
-    };
+    let recv_fut = async { while futures_unordered.next().await.is_some() {} };
 
     recv_fut
         .timeout(Duration::from_secs(5))
@@ -216,7 +215,7 @@ fn change_waker() {
         assert_eq!(send_fut.poll(&mut waker2.ctx()), Poll::Pending);
 
         // Wake the future
-        rx.recv().unwrap();
+        rx.recv_blocking().unwrap();
 
         // Check that waker2 was woken and waker1 was not
         assert_eq!(waker1.woken(), 0);
@@ -225,8 +224,8 @@ fn change_waker() {
 
     // Check that the waker is correctly updated when receiving tasks change their wakers
     {
-        rx.recv().unwrap();
-        let recv_fut = rx.recv_async();
+        rx.recv_blocking().unwrap();
+        let recv_fut = rx.recv();
         futures::pin_mut!(recv_fut);
 
         let (waker1, waker2) = (DebugWaker::new(), DebugWaker::new());
@@ -252,9 +251,9 @@ fn spsc_single_threaded_value_ordering() {
     async fn test() {
         let (tx, rx) = theta_flume::bounded(4);
         tokio::select! {
-        _ = producer(tx) => {},
-        _ = consumer(rx) => {},
-    }
+            _ = producer(tx) => {},
+            _ = consumer(rx) => {},
+        }
     }
 
     async fn producer(tx: theta_flume::Sender<usize>) {
@@ -265,12 +264,14 @@ fn spsc_single_threaded_value_ordering() {
 
     async fn consumer(rx: theta_flume::Receiver<usize>) {
         let mut expected = 0;
-        while let Ok(value) = rx.recv_async().await {
+        while let Some(value) = rx.recv().await {
             assert_eq!(value, expected);
             expected += 1;
         }
     }
 
-    let rt = tokio::runtime::Builder::new_current_thread().build().unwrap();
+    let rt = tokio::runtime::Builder::new_current_thread()
+        .build()
+        .unwrap();
     rt.block_on(test());
 }

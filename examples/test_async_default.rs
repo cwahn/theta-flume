@@ -7,7 +7,7 @@ async fn main() {
     // Test that async methods are available by default
     tx.send_async("Test async functionality").await.unwrap();
     
-    let result = rx.recv_async().await.unwrap();
+    let result = rx.recv().await.unwrap();
     println!("Successfully received: {}", result);
     
     println!("✅ Async functionality is working by default!");

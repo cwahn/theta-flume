@@ -1,18 +1,24 @@
-use std::time::{Instant, Duration};
+use std::time::{Duration, Instant};
 use theta_flume::*;
 
 #[test]
 fn send_recv() {
     let (tx, rx) = unbounded();
-    for i in 0..1000 { tx.send(i).unwrap(); }
-    for i in 0..1000 { assert_eq!(rx.try_recv().unwrap(), i); }
+    for i in 0..1000 {
+        tx.send(i).unwrap();
+    }
+    for i in 0..1000 {
+        assert_eq!(rx.try_recv().unwrap(), i);
+    }
     assert!(rx.try_recv().is_err());
 }
 
 #[test]
 fn iter() {
     let (tx, rx) = unbounded();
-    for i in 0..1000 { tx.send(i).unwrap(); }
+    for i in 0..1000 {
+        tx.send(i).unwrap();
+    }
     drop(tx);
     assert_eq!(rx.iter().sum::<u32>(), (0..1000).sum());
 }
@@ -20,7 +26,9 @@ fn iter() {
 #[test]
 fn try_iter() {
     let (tx, rx) = unbounded();
-    for i in 0..1000 { tx.send(i).unwrap(); }
+    for i in 0..1000 {
+        tx.send(i).unwrap();
+    }
     assert_eq!(rx.try_iter().sum::<u32>(), (0..1000).sum());
 }
 
@@ -73,7 +81,7 @@ fn recv_timeout() {
 
     let (tx, rx) = unbounded();
     let then = Instant::now();
-    assert!(rx.recv_timeout(dur).is_err());
+    assert!(rx.recv_blocking_timeout(dur).is_err());
     let now = Instant::now();
 
     let this = now.duration_since(then);
@@ -82,7 +90,7 @@ fn recv_timeout() {
     }
 
     tx.send(42).unwrap();
-    assert_eq!(rx.recv_timeout(dur), Ok(42));
+    assert_eq!(rx.recv_blocking_timeout(dur), Ok(42));
     assert!(Instant::now().duration_since(now) < max_error);
 }
 
@@ -96,7 +104,9 @@ fn recv_deadline() {
 
     let (tx, rx) = unbounded();
     let then = Instant::now();
-    assert!(rx.recv_deadline(then.checked_add(dur).unwrap()).is_err());
+    assert!(rx
+        .recv_blocking_deadline(then.checked_add(dur).unwrap())
+        .is_err());
     let now = Instant::now();
 
     let this = now.duration_since(then);
@@ -105,7 +115,10 @@ fn recv_deadline() {
     }
 
     tx.send(42).unwrap();
-    assert_eq!(rx.recv_deadline(now.checked_add(dur).unwrap()), Ok(42));
+    assert_eq!(
+        rx.recv_blocking_deadline(now.checked_add(dur).unwrap()),
+        Ok(42)
+    );
     assert!(Instant::now().duration_since(now) < max_error);
 }
 
@@ -113,18 +126,20 @@ fn recv_deadline() {
 fn recv_timeout_missed_send() {
     let (tx, rx) = bounded(10);
 
-    assert!(rx.recv_timeout(Duration::from_millis(100)).is_err());
+    assert!(rx
+        .recv_blocking_timeout(Duration::from_millis(100))
+        .is_err());
 
     tx.send(42).unwrap();
 
-    assert_eq!(rx.recv(), Ok(42));
+    assert_eq!(rx.recv_blocking(), Some(42));
 }
 
 #[test]
 fn disconnect_tx() {
     let (tx, rx) = unbounded::<()>();
     drop(tx);
-    assert!(rx.recv().is_err());
+    assert!(rx.recv_blocking().is_none());
 }
 
 #[test]
@@ -152,9 +167,12 @@ fn drain() {
         tx.send(i).unwrap();
     }
 
-    rx.recv().unwrap();
+    rx.recv_blocking().unwrap();
 
-    (1u32..100).chain(0..100).zip(rx).for_each(|(l, r)| assert_eq!(l, r));
+    (1u32..100)
+        .chain(0..100)
+        .zip(rx)
+        .for_each(|(l, r)| assert_eq!(l, r));
 }
 
 #[test]
@@ -167,11 +185,11 @@ fn try_send() {
 
     assert!(tx.try_send(42).is_err());
 
-    assert_eq!(rx.recv(), Ok(0));
+    assert_eq!(rx.recv_blocking(), Some(0));
 
     assert_eq!(tx.try_send(42), Ok(()));
 
-    assert_eq!(rx.recv(), Ok(1));
+    assert_eq!(rx.recv_blocking(), Some(1));
     drop(rx);
 
     assert!(tx.try_send(42).is_err());
@@ -185,7 +203,7 @@ fn send_bounded() {
         tx.send(42).unwrap();
     }
 
-    let _ = rx.recv().unwrap();
+    let _ = rx.recv_blocking().unwrap();
 
     tx.send(42).unwrap();
 
@@ -211,7 +229,7 @@ fn send_bounded() {
         t.join().unwrap();
     }
 
-    assert!(rx.recv().is_err());
+    assert!(rx.recv_blocking().is_none());
 }
 
 #[test]
@@ -227,11 +245,15 @@ fn rendezvous() {
             tx.send(()).unwrap();
             let now = Instant::now();
 
-            assert!(now.duration_since(then) > Duration::from_millis(100), "iter = {}", i);
+            assert!(
+                now.duration_since(then) > Duration::from_millis(100),
+                "iter = {}",
+                i
+            );
         });
 
         std::thread::sleep(Duration::from_millis(1000));
-        rx.recv().unwrap();
+        rx.recv_blocking().unwrap();
 
         t.join().unwrap();
     }
@@ -268,13 +290,13 @@ fn hydra() {
 
         for _ in 0..thread_num {
             for _ in 0..msg_num {
-                main_rx.recv().unwrap();
+                main_rx.recv_blocking().unwrap();
             }
         }
     }
 
     drop(txs);
-    assert!(main_rx.recv().is_err());
+    assert!(main_rx.recv_blocking().is_none());
 }
 
 #[test]
@@ -304,7 +326,7 @@ fn robin() {
         });
 
         for _ in 0..msg_num {
-            main_rx.recv().unwrap();
+            main_rx.recv_blocking().unwrap();
         }
     }
 }
@@ -332,28 +354,25 @@ fn select_general() {
         .unwrap();
 
     if x == Foo(0) {
-        assert!(rx1.recv().unwrap() == Foo(1));
+        assert!(rx1.recv_blocking().unwrap() == Foo(1));
     } else {
-        assert!(rx0.recv().unwrap() == Foo(0));
+        assert!(rx0.recv_blocking().unwrap() == Foo(0));
     }
 
     tx0.send(Foo(42)).unwrap();
 
     let t = std::thread::spawn(move || {
         std::thread::sleep(std::time::Duration::from_millis(100));
-        assert_eq!(rx0.recv().unwrap(), Foo(42));
-        assert_eq!(rx0.recv().unwrap(), Foo(43));
-
+        assert_eq!(rx0.recv_blocking().unwrap(), Foo(42));
+        assert_eq!(rx0.recv_blocking().unwrap(), Foo(43));
     });
 
-    Selector::new()
-        .send(&tx0, Foo(43), |x| x)
-        .wait()
-        .unwrap();
+    Selector::new().send(&tx0, Foo(43), |x| x).wait().unwrap();
 
     t.join().unwrap();
 }
 
+#[allow(dead_code)]
 struct MessageWithoutDebug(u32);
 
 #[test]
@@ -370,10 +389,10 @@ fn std_error_without_debug() {
         }
     }
 
-    match rx.recv() {
-        Ok(_) => {}
-        Err(e) => {
-            let _std_err: &dyn std::error::Error = &e;
+    match rx.recv_blocking() {
+        Some(_) => {}
+        None => {
+            // let _std_err: &dyn std::error::Error = &e;
         }
     }
 
@@ -398,7 +417,7 @@ fn std_error_without_debug() {
         }
     }
 
-    match rx.recv_timeout(Duration::from_secs(10000000)) {
+    match rx.recv_blocking_timeout(Duration::from_secs(10000000)) {
         Ok(_) => {}
         Err(e) => {
             let _std_err: &dyn std::error::Error = &e;

@@ -214,7 +214,7 @@ impl<'a, T> Selector<'a, T> {
     /// Add a receive operation to the selector.
     ///
     /// Once added, the selector can be used to run the provided handler function on completion of this operation.
-    pub fn recv<U, F: FnMut(Result<U, RecvError>) -> T + 'a>(
+    pub fn recv<U, F: FnMut(Option<U>) -> T + 'a>(
         mut self,
         receiver: &'a Receiver<U>,
         mapper: F,
@@ -231,7 +231,7 @@ impl<'a, T> Selector<'a, T> {
 
         impl<'a, T, F, U> Selection<'a, T> for RecvSelection<'a, T, F, U>
         where
-            F: FnMut(Result<U, RecvError>) -> T,
+            F: FnMut(Option<U>) -> T,
         {
             fn init(&mut self) -> Option<T> {
                 let token = self.token;
@@ -255,8 +255,8 @@ impl<'a, T> Selector<'a, T> {
 
                 if self.hook.is_none() {
                     Some((self.mapper)(match r {
-                        Ok(msg) => Ok(msg),
-                        Err(TryRecvTimeoutError::Disconnected) => Err(RecvError::Disconnected),
+                        Ok(msg) => Some(msg),
+                        Err(TryRecvTimeoutError::Disconnected) => None,
                         _ => unreachable!(),
                     }))
                 } else {
@@ -267,9 +267,9 @@ impl<'a, T> Selector<'a, T> {
             fn poll(&mut self) -> Option<T> {
                 let res = if let Ok(msg) = self.receiver.try_recv() {
                     self.received = true;
-                    Ok(msg)
+                    Some(msg)
                 } else if self.receiver.shared.is_disconnected() {
-                    Err(RecvError::Disconnected)
+                    None
                 } else {
                     return None;
                 };

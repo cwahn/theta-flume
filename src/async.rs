@@ -1,17 +1,20 @@
 //! Futures and other types that allow asynchronous interaction with channels.
 
-use std::{
-    future::Future,
-    pin::Pin,
-    task::{Context, Poll, Waker},
-    any::Any,
-    ops::Deref,
-};
-use std::fmt::{Debug, Formatter};
 use crate::*;
-use futures_core::{stream::{Stream, FusedStream}, future::FusedFuture};
+use futures_core::{
+    future::FusedFuture,
+    stream::{FusedStream, Stream},
+};
 use futures_sink::Sink;
 use spin1::Mutex as Spinlock;
+use std::fmt::{Debug, Formatter};
+use std::{
+    any::Any,
+    future::Future,
+    ops::Deref,
+    pin::Pin,
+    task::{Context, Poll, Waker},
+};
 
 struct AsyncSignal {
     waker: Spinlock<Waker>,
@@ -36,8 +39,12 @@ impl Signal for AsyncSignal {
         self.stream
     }
 
-    fn as_any(&self) -> &(dyn Any + 'static) { self }
-    fn as_ptr(&self) -> *const () { self as *const _ as *const () }
+    fn as_any(&self) -> &(dyn Any + 'static) {
+        self
+    }
+    fn as_ptr(&self) -> *const () {
+        self as *const _ as *const ()
+    }
 }
 
 impl<T> Hook<T, AsyncSignal> {
@@ -156,9 +163,11 @@ impl<'a, T> SendFut<'a, T> {
     fn reset_hook(&mut self) {
         if let Some(SendState::QueuedItem(hook)) = self.hook.take() {
             let hook: Arc<Hook<T, dyn Signal>> = hook;
-            wait_lock(&self.sender.shared.chan).sending
+            wait_lock(&self.sender.shared.chan)
+                .sending
                 .as_mut()
-                .unwrap().1
+                .unwrap()
+                .1
                 .retain(|s| s.signal().as_ptr() != hook.signal().as_ptr());
         }
     }
@@ -195,7 +204,6 @@ impl<'a, T> Drop for SendFut<'a, T> {
     }
 }
 
-
 impl<'a, T> Future for SendFut<'a, T> {
     type Output = Result<(), SendError<T>>;
 
@@ -218,24 +226,28 @@ impl<'a, T> Future for SendFut<'a, T> {
             let this = self.get_mut();
             let (shared, this_hook) = (&this.sender.shared, &mut this.hook);
 
-            shared.send(
-                // item
-                item,
-                // should_block
-                true,
-                // make_signal
-                |msg| Hook::slot(Some(msg), AsyncSignal::new(cx, false)),
-                // do_block
-                |hook| {
-                    *this_hook = Some(SendState::QueuedItem(hook));
-                    Poll::Pending
-                },
-            )
-                .map(|r| r.map_err(|err| match err {
-                    TrySendTimeoutError::Disconnected(msg) => SendError(msg),
-                    _ => unreachable!(),
-                }))
-        } else { // Nothing to do
+            shared
+                .send(
+                    // item
+                    item,
+                    // should_block
+                    true,
+                    // make_signal
+                    |msg| Hook::slot(Some(msg), AsyncSignal::new(cx, false)),
+                    // do_block
+                    |hook| {
+                        *this_hook = Some(SendState::QueuedItem(hook));
+                        Poll::Pending
+                    },
+                )
+                .map(|r| {
+                    r.map_err(|err| match err {
+                        TrySendTimeoutError::Disconnected(msg) => SendError(msg),
+                        _ => unreachable!(),
+                    })
+                })
+        } else {
+            // Nothing to do
             Poll::Ready(Ok(()))
         }
     }
@@ -330,14 +342,14 @@ impl<'a, T> Clone for SendSink<'a, T> {
 impl<T> Receiver<T> {
     /// Asynchronously receive a value from the channel, returning an error if all senders have been
     /// dropped. If the channel is empty, the returned future will yield to the async runtime.
-    pub fn recv_async(&self) -> RecvFut<'_, T> {
+    pub fn recv(&self) -> RecvFut<'_, T> {
         RecvFut::new(OwnedOrRef::Ref(self))
     }
 
     /// Convert this receiver into a future that asynchronously receives a single message from the
     /// channel, returning an error if all senders have been dropped. If the channel is empty, this
     /// future will yield to the async runtime.
-    pub fn into_recv_async<'a>(self) -> RecvFut<'a, T> {
+    pub fn into_recv_fut<'a>(self) -> RecvFut<'a, T> {
         RecvFut::new(OwnedOrRef::Owned(self))
     }
 
@@ -378,8 +390,16 @@ impl<'a, T> RecvFut<'a, T> {
             let hook: Arc<Hook<T, dyn Signal>> = hook;
             let mut chan = wait_lock(&self.receiver.shared.chan);
             // We'd like to use `Arc::ptr_eq` here but it doesn't seem to work consistently with wide pointers?
-            chan.waiting.retain(|s| s.signal().as_ptr() != hook.signal().as_ptr());
-            if hook.signal().as_any().downcast_ref::<AsyncSignal>().unwrap().woken.load(Ordering::SeqCst) {
+            chan.waiting
+                .retain(|s| s.signal().as_ptr() != hook.signal().as_ptr());
+            if hook
+                .signal()
+                .as_any()
+                .downcast_ref::<AsyncSignal>()
+                .unwrap()
+                .woken
+                .load(Ordering::SeqCst)
+            {
                 // If this signal has been fired, but we're being dropped (and so not listening to it),
                 // pass the signal on to another receiver
                 chan.try_wake_receiver_if_pending();
@@ -387,17 +407,11 @@ impl<'a, T> RecvFut<'a, T> {
         }
     }
 
-    fn poll_inner(
-        self: Pin<&mut Self>,
-        cx: &mut Context,
-        stream: bool,
-    ) -> Poll<Result<T, RecvError>> {
+    fn poll_inner(self: Pin<&mut Self>, cx: &mut Context, stream: bool) -> Poll<Option<T>> {
         if self.hook.is_some() {
             match self.receiver.shared.recv_sync(None) {
-                Ok(msg) => return Poll::Ready(Ok(msg)),
-                Err(TryRecvTimeoutError::Disconnected) => {
-                    return Poll::Ready(Err(RecvError::Disconnected))
-                }
+                Ok(msg) => return Poll::Ready(Some(msg)),
+                Err(TryRecvTimeoutError::Disconnected) => return Poll::Ready(None),
                 _ => (),
             }
 
@@ -418,8 +432,8 @@ impl<'a, T> RecvFut<'a, T> {
                     self.receiver
                         .shared
                         .recv_sync(None)
-                        .map(Ok)
-                        .unwrap_or(Err(RecvError::Disconnected)),
+                        .map(Some)
+                        .unwrap_or(None),
                 )
             } else {
                 Poll::Pending
@@ -428,21 +442,19 @@ impl<'a, T> RecvFut<'a, T> {
             let mut_self = self.get_mut();
             let (shared, this_hook) = (&mut_self.receiver.shared, &mut mut_self.hook);
 
-            shared.recv(
-                // should_block
-                true,
-                // make_signal
-                || Hook::trigger(AsyncSignal::new(cx, stream)),
-                // do_block
-                |hook| {
-                    *this_hook = Some(hook);
-                    Poll::Pending
-                },
-            )
-                .map(|r| r.map_err(|err| match err {
-                    TryRecvTimeoutError::Disconnected => RecvError::Disconnected,
-                    _ => unreachable!(),
-                }))
+            shared
+                .recv(
+                    // should_block
+                    true,
+                    // make_signal
+                    || Hook::trigger(AsyncSignal::new(cx, stream)),
+                    // do_block
+                    |hook| {
+                        *this_hook = Some(hook);
+                        Poll::Pending
+                    },
+                )
+                .map(|r| r.ok())
         }
     }
 
@@ -485,7 +497,7 @@ impl<'a, T> Drop for RecvFut<'a, T> {
 }
 
 impl<'a, T> Future for RecvFut<'a, T> {
-    type Output = Result<T, RecvError>;
+    type Output = Option<T>;
 
     fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
         self.poll_inner(cx, false) // stream = false
@@ -551,11 +563,12 @@ impl<'a, T> Stream for RecvStream<'a, T> {
     type Item = T;
 
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
-        match Pin::new(&mut self.0).poll_inner(cx, true) { // stream = true
+        match Pin::new(&mut self.0).poll_inner(cx, true) {
+            // stream = true
             Poll::Pending => Poll::Pending,
             Poll::Ready(item) => {
                 self.0.reset_hook();
-                Poll::Ready(item.ok())
+                Poll::Ready(item)
             }
         }
     }

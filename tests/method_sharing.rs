@@ -20,7 +20,7 @@ async fn sender() {
     assert_eq!(sender.len(), sender_sink.len());
     assert_eq!(sender.capacity(), sender_sink.capacity());
 
-    let receiver_fut = receiver.recv_async();
+    let receiver_fut = receiver.recv();
     assert_eq!(receiver.is_disconnected(), receiver_fut.is_disconnected());
     assert_eq!(receiver.is_empty(), receiver_fut.is_empty());
     assert_eq!(receiver.is_full(), receiver_fut.is_full());

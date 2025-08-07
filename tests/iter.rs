@@ -23,7 +23,7 @@ fn nested_recv_iter() {
         s.send(1).unwrap();
         s.send(2).unwrap();
         drop(s);
-        assert_eq!(total_r.recv().unwrap(), 6);
+        assert_eq!(total_r.recv_blocking().unwrap(), 6);
     })
     .unwrap();
 }
@@ -51,7 +51,7 @@ fn recv_iter_break() {
         s.send(2).unwrap();
         let _ = s.send(2);
         drop(s);
-        assert_eq!(count_r.recv().unwrap(), 4);
+        assert_eq!(count_r.recv_blocking().unwrap(), 4);
     })
     .unwrap();
 }
