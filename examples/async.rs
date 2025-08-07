@@ -9,8 +9,8 @@ async fn main() {
         }
     });
 
-    tx.send_async("Hello, world!").await.unwrap();
-    tx.send_async("How are you today?").await.unwrap();
+    tx.send("Hello, world!").await.unwrap();
+    tx.send("How are you today?").await.unwrap();
 
     drop(tx);
 

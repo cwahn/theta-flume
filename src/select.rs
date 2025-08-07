@@ -60,15 +60,15 @@ impl std::error::Error for SelectError {}
 ///
 /// # Examples
 /// ```
-/// let (tx0, rx0) = flume::unbounded();
-/// let (tx1, rx1) = flume::unbounded();
+/// let (tx0, rx0) = theta_flume::unbounded();
+/// let (tx1, rx1) = theta_flume::unbounded();
 ///
 /// std::thread::spawn(move || {
-///     tx0.send(true).unwrap();
-///     tx1.send(42).unwrap();
+///     tx0.send_blocking(true).unwrap();
+///     tx1.send_blocking(42).unwrap();
 /// });
 ///
-/// flume::Selector::new()
+/// theta_flume::Selector::new()
 ///     .recv(&rx0, |b| println!("Received {:?}", b))
 ///     .recv(&rx1, |n| println!("Received {:?}", n))
 ///     .wait();

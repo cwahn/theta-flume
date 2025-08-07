@@ -9,8 +9,8 @@ fn main() {
         }
     });
 
-    tx.send("Hello, world!").unwrap();
-    tx.send("How are you today?").unwrap();
+    tx.send_blocking("Hello, world!").unwrap();
+    tx.send_blocking("How are you today?").unwrap();
 
     drop(tx);
 

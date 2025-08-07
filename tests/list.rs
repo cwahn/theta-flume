@@ -25,7 +25,7 @@ fn smoke() {
     s.try_send(7).unwrap();
     assert_eq!(r.try_recv(), Ok(7));
 
-    s.send(8).unwrap();
+    s.send_blocking(8).unwrap();
     assert_eq!(r.recv_blocking(), Some(8));
 
     assert_eq!(r.try_recv(), Err(TryRecvError::Empty));
@@ -53,7 +53,7 @@ fn len_empty_full() {
     assert_eq!(r.is_empty(), true);
     assert_eq!(r.is_full(), false);
 
-    s.send(()).unwrap();
+    s.send_blocking(()).unwrap();
 
     assert_eq!(s.len(), 1);
     assert_eq!(s.is_empty(), false);
@@ -86,7 +86,7 @@ fn try_recv() {
         });
         scope.spawn(move |_| {
             thread::sleep(ms(1000));
-            s.send(7).unwrap();
+            s.send_blocking(7).unwrap();
         });
     })
     .unwrap();
@@ -107,9 +107,9 @@ fn recv() {
         });
         scope.spawn(move |_| {
             thread::sleep(ms(1500));
-            s.send(7).unwrap();
-            s.send(8).unwrap();
-            s.send(9).unwrap();
+            s.send_blocking(7).unwrap();
+            s.send_blocking(8).unwrap();
+            s.send_blocking(9).unwrap();
         });
     })
     .unwrap();
@@ -133,7 +133,7 @@ fn recv_timeout() {
         });
         scope.spawn(move |_| {
             thread::sleep(ms(1500));
-            s.send(7).unwrap();
+            s.send_blocking(7).unwrap();
         });
     })
     .unwrap();
@@ -154,23 +154,23 @@ fn try_send() {
 fn send() {
     let (s, r) = unbounded();
     for i in 0..1000 {
-        assert_eq!(s.send(i), Ok(()));
+        assert_eq!(s.send_blocking(i), Ok(()));
     }
 
     drop(r);
-    assert_eq!(s.send(777), Err(SendError(777)));
+    assert_eq!(s.send_blocking(777), Err(SendError(777)));
 }
 
 #[test]
 fn send_timeout() {
     let (s, r) = unbounded();
     for i in 0..1000 {
-        assert_eq!(s.send_timeout(i, ms(i as u64)), Ok(()));
+        assert_eq!(s.send_blocking_timeout(i, ms(i as u64)), Ok(()));
     }
 
     drop(r);
     assert_eq!(
-        s.send_timeout(777, ms(0)),
+        s.send_blocking_timeout(777, ms(0)),
         Err(SendTimeoutError::Disconnected(777))
     );
 }
@@ -179,16 +179,16 @@ fn send_timeout() {
 fn send_after_disconnect() {
     let (s, r) = unbounded();
 
-    s.send(1).unwrap();
-    s.send(2).unwrap();
-    s.send(3).unwrap();
+    s.send_blocking(1).unwrap();
+    s.send_blocking(2).unwrap();
+    s.send_blocking(3).unwrap();
 
     drop(r);
 
-    assert_eq!(s.send(4), Err(SendError(4)));
+    assert_eq!(s.send_blocking(4), Err(SendError(4)));
     assert_eq!(s.try_send(5), Err(TrySendError::Disconnected(5)));
     assert_eq!(
-        s.send_timeout(6, ms(0)),
+        s.send_blocking_timeout(6, ms(0)),
         Err(SendTimeoutError::Disconnected(6))
     );
 }
@@ -197,9 +197,9 @@ fn send_after_disconnect() {
 fn recv_after_disconnect() {
     let (s, r) = unbounded();
 
-    s.send(1).unwrap();
-    s.send(2).unwrap();
-    s.send(3).unwrap();
+    s.send_blocking(1).unwrap();
+    s.send_blocking(2).unwrap();
+    s.send_blocking(3).unwrap();
 
     drop(s);
 
@@ -217,7 +217,7 @@ fn len() {
     assert_eq!(r.len(), 0);
 
     for i in 0..50 {
-        s.send(i).unwrap();
+        s.send_blocking(i).unwrap();
         assert_eq!(s.len(), i + 1);
     }
 
@@ -261,7 +261,7 @@ fn spsc() {
         });
         scope.spawn(move |_| {
             for i in 0..COUNT {
-                s.send(i).unwrap();
+                s.send_blocking(i).unwrap();
             }
         });
     })
@@ -288,7 +288,7 @@ fn mpmc() {
         for _ in 0..THREADS {
             scope.spawn(|_| {
                 for i in 0..COUNT {
-                    s.send(i).unwrap();
+                    s.send_blocking(i).unwrap();
                 }
             });
         }
@@ -311,7 +311,7 @@ fn stress_oneshot() {
 
         scope(|scope| {
             scope.spawn(|_| r.recv_blocking().unwrap());
-            scope.spawn(|_| s.send(0).unwrap());
+            scope.spawn(|_| s.send_blocking(0).unwrap());
         })
         .unwrap();
     }
@@ -334,12 +334,12 @@ fn stress_iter() {
                         return;
                     }
                 }
-                request_s.send(()).unwrap();
+                request_s.send_blocking(()).unwrap();
             }
         });
 
         for _ in request_r.iter() {
-            if response_s.send(1).is_err() {
+            if response_s.send_blocking(1).is_err() {
                 break;
             }
         }
@@ -359,7 +359,7 @@ fn stress_timeout_two_threads() {
                 if i % 2 == 0 {
                     thread::sleep(ms(50));
                 }
-                s.send(i).unwrap();
+                s.send_blocking(i).unwrap();
             }
         });
 
@@ -411,7 +411,7 @@ fn drops() {
 
             scope.spawn(|_| {
                 for _ in 0..steps {
-                    s.send(DropCounter).unwrap();
+                    s.send_blocking(DropCounter).unwrap();
                 }
             });
         })
@@ -439,7 +439,7 @@ fn linearizable() {
         for _ in 0..THREADS {
             scope.spawn(|_| {
                 for _ in 0..COUNT {
-                    s.send(0).unwrap();
+                    s.send_blocking(0).unwrap();
                     r.try_recv().unwrap();
                 }
             });
@@ -519,7 +519,7 @@ fn channel_through_channel() {
                 let (new_s, new_r) = unbounded();
                 let new_r: T = Box::new(Some(new_r));
 
-                s.send(new_r).unwrap();
+                s.send_blocking(new_r).unwrap();
                 s = new_s;
             }
         });

@@ -19,7 +19,7 @@ use std::thread;
 fn main() {
     println!("Hello, world!");
 
-    let (tx, rx) = flume::unbounded();
+    let (tx, rx) = theta_flume::unbounded();
 
     thread::spawn(move || {
         (0..10).for_each(|i| {

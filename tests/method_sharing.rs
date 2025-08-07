@@ -6,7 +6,7 @@ use theta_flume::*;
 async fn sender() {
     let (sender, receiver) = bounded(1);
 
-    let sender_fut = sender.send_async(());
+    let sender_fut = sender.send(());
     assert_eq!(sender.is_disconnected(), sender_fut.is_disconnected());
     assert_eq!(sender.is_empty(), sender_fut.is_empty());
     assert_eq!(sender.is_full(), sender_fut.is_full());

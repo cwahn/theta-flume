@@ -90,7 +90,7 @@ impl<T> Sender<T> {
     ///
     /// In the current implementation, the returned future will not yield to the async runtime if the
     /// channel is unbounded. This may change in later versions.
-    pub fn send_async(&self, item: T) -> SendFut<T> {
+    pub fn send(&self, item: T) -> SendFut<T> {
         SendFut {
             sender: OwnedOrRef::Ref(&self),
             hook: Some(SendState::NotYetSent(item)),
@@ -103,7 +103,7 @@ impl<T> Sender<T> {
     ///
     /// In the current implementation, the returned future will not yield to the async runtime if the
     /// channel is unbounded. This may change in later versions.
-    pub fn into_send_async<'a>(self, item: T) -> SendFut<'a, T> {
+    pub fn into_send_fut<'a>(self, item: T) -> SendFut<'a, T> {
         SendFut {
             sender: OwnedOrRef::Owned(self),
             hook: Some(SendState::NotYetSent(item)),
@@ -141,7 +141,7 @@ enum SendState<T> {
 
 /// A future that sends a value into a channel.
 ///
-/// Can be created via [`Sender::send_async`] or [`Sender::into_send_async`].
+/// Can be created via [`Sender::send`] or [`Sender::into_send_fut`].
 #[must_use = "futures/streams/sinks do nothing unless you `.await` or poll them"]
 pub struct SendFut<'a, T> {
     sender: OwnedOrRef<'a, Sender<T>>,

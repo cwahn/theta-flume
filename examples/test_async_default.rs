@@ -5,7 +5,7 @@ async fn main() {
     let (tx, rx) = theta_flume::bounded(1);
 
     // Test that async methods are available by default
-    tx.send_async("Test async functionality").await.unwrap();
+    tx.send("Test async functionality").await.unwrap();
     
     let result = rx.recv().await.unwrap();
     println!("Successfully received: {}", result);

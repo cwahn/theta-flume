@@ -21,8 +21,8 @@
 //! ```
 //! let (tx, rx) = theta_flume::unbounded();
 //!
-//! tx.send(42).unwrap();
-//! assert_eq!(rx.recv().unwrap(), 42);
+//! tx.send_blocking(42).unwrap();
+//! assert_eq!(rx.recv_blocking().unwrap(), 42);
 //! ```
 
 #![cfg_attr(docsrs, feature(doc_cfg, doc_auto_cfg))]
@@ -732,6 +732,11 @@ pub struct Sender<T> {
 }
 
 impl<T> Sender<T> {
+    /// Possibley manually designated identifier for the channel
+    pub fn id(&self) -> Uuid {
+        self.shared.id
+    }
+
     /// Attempt to send a value into the channel. If the channel is bounded and full, or all
     /// receivers have been dropped, an error is returned. If the channel associated with this
     /// sender is unbounded, this method has the same behaviour as [`Sender::send`].
@@ -747,7 +752,7 @@ impl<T> Sender<T> {
     /// If the channel is bounded and is full, this method will block until space is available
     /// or all receivers have been dropped. If the channel is unbounded, this method will not
     /// block.
-    pub fn send(&self, msg: T) -> Result<(), SendError<T>> {
+    pub fn send_blocking(&self, msg: T) -> Result<(), SendError<T>> {
         self.shared
             .send_sync(msg, Some(None))
             .map_err(|err| match err {
@@ -760,7 +765,11 @@ impl<T> Sender<T> {
     /// or the deadline has passed. If the channel is bounded and is full, this method will
     /// block until space is available, the deadline is reached, or all receivers have been
     /// dropped.
-    pub fn send_deadline(&self, msg: T, deadline: Instant) -> Result<(), SendTimeoutError<T>> {
+    pub fn send_blocking_deadline(
+        &self,
+        msg: T,
+        deadline: Instant,
+    ) -> Result<(), SendTimeoutError<T>> {
         self.shared
             .send_sync(msg, Some(Some(deadline)))
             .map_err(|err| match err {
@@ -774,8 +783,8 @@ impl<T> Sender<T> {
     /// or the timeout has expired. If the channel is bounded and is full, this method will
     /// block until space is available, the timeout has expired, or all receivers have been
     /// dropped.
-    pub fn send_timeout(&self, msg: T, dur: Duration) -> Result<(), SendTimeoutError<T>> {
-        self.send_deadline(msg, Instant::now().checked_add(dur).unwrap())
+    pub fn send_blocking_timeout(&self, msg: T, dur: Duration) -> Result<(), SendTimeoutError<T>> {
+        self.send_blocking_deadline(msg, Instant::now().checked_add(dur).unwrap())
     }
 
     /// Returns true if all receivers for this channel have been dropped.
@@ -925,6 +934,11 @@ pub struct Receiver<T> {
 }
 
 impl<T> Receiver<T> {
+    /// Possibley manually designated identifier for the channel
+    pub fn id(&self) -> Uuid {
+        self.shared.id
+    }
+
     /// Attempt to fetch an incoming value from the channel associated with this receiver,
     /// returning an error if the channel is empty or if all senders have been dropped.
     pub fn try_recv(&self) -> Result<T, TryRecvError> {
@@ -1180,8 +1194,8 @@ impl<T> Iterator for IntoIter<T> {
 /// ```
 /// let (tx, rx) = theta_flume::unbounded();
 ///
-/// tx.send(42).unwrap();
-/// assert_eq!(rx.recv().unwrap(), 42);
+/// tx.send_blocking(42).unwrap();
+/// assert_eq!(rx.recv_blocking().unwrap(), 42);
 /// ```
 pub fn unbounded<T>() -> (Sender<T>, Receiver<T>) {
     let shared = Arc::new(Shared::new(Uuid::new_v4(), None));
@@ -1212,7 +1226,7 @@ pub fn unbounded_with_id<T>(id: Uuid) -> (Sender<T>, Receiver<T>) {
 /// may be cloned.
 ///
 /// Unlike an [`unbounded`] channel, if there is no space left for new messages, calls to
-/// [`Sender::send`] will block (unblocking once a receiver has made space). If blocking behaviour
+/// [`Sender::send_blocking`] will block (unblocking once a receiver has made space). If blocking behaviour
 /// is not desired, [`Sender::try_send`] may be used.
 ///
 /// Like `std::sync::mpsc`, `theta-flume` supports 'rendezvous' channels. A bounded queue with a maximum capacity of zero
@@ -1225,7 +1239,7 @@ pub fn unbounded_with_id<T>(id: Uuid) -> (Sender<T>, Receiver<T>) {
 /// let (tx, rx) = theta_flume::bounded(32);
 ///
 /// for i in 1..33 {
-///     tx.send(i).unwrap();
+///     tx.send_blocking(i).unwrap();
 /// }
 /// assert!(tx.try_send(33).is_err());
 ///
