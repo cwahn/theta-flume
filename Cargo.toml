@@ -1,14 +1,14 @@
 [package]
 name = "theta-flume"
-version = "0.11.1"
+version = "0.11.2"
 authors = [
     "Joshua Barretto <joshua.s.barretto@gmail.com>",
     "Chanwoo Ahn <cwahn0904@gmail.com>",
 ]
 edition = "2018"
 description = "A blazingly fast multi-producer channel"
-repository = "https://github.com/zesterer/flume"
-documentation = "https://docs.rs/flume"
+repository = "https://github.com/cwahn/theta-flume"
+documentation = "https://docs.rs/theta-flume"
 keywords = ["mpsc", "fifo", "channel", "thread", "mpmc"]
 categories = ["concurrency", "data-structures"]
 license = "Apache-2.0/MIT"

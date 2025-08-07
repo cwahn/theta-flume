@@ -367,7 +367,7 @@ impl<T> Receiver<T> {
 
 /// A future which allows asynchronously receiving a message.
 ///
-/// Can be created via [`Receiver::recv_async`] or [`Receiver::into_recv_async`].
+/// Can be created via [`Receiver::recv`] or [`Receiver::into_recv_fut`].
 #[must_use = "futures/streams/sinks do nothing unless you `.await` or poll them"]
 pub struct RecvFut<'a, T> {
     receiver: OwnedOrRef<'a, Receiver<T>>,

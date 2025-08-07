@@ -320,18 +320,18 @@ impl<'a, T> Selector<'a, T> {
             self.next_poll = self.rng.usize(0..self.selections.len());
         }
 
-        let res = 'outer: loop {
+        let res = 'result: {
             // Init signals
             for _ in 0..self.selections.len() {
                 if let Some(val) = self.selections[self.next_poll].init() {
-                    break 'outer Some(val);
+                    break 'result Some(val);
                 }
                 self.next_poll = (self.next_poll + 1) % self.selections.len();
             }
 
             // Speculatively poll
             if let Some(msg) = self.poll() {
-                break 'outer Some(msg);
+                break 'result Some(msg);
             }
 
             loop {
@@ -344,7 +344,7 @@ impl<'a, T> Selector<'a, T> {
                 }
 
                 if deadline.map(|d| Instant::now() >= d).unwrap_or(false) {
-                    break 'outer self.poll();
+                    break 'result self.poll();
                 }
 
                 let token = if let Some(token) = self.signalled.lock().pop_front() {
@@ -356,7 +356,7 @@ impl<'a, T> Selector<'a, T> {
 
                 // Attempt to receive a message
                 if let Some(msg) = self.selections[token].poll() {
-                    break 'outer Some(msg);
+                    break 'result Some(msg);
                 }
             }
         };
