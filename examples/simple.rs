@@ -1,7 +1,7 @@
 use std::thread;
 
 fn main() {
-    let (tx, rx) = flume::unbounded();
+    let (tx, rx) = theta_flume::unbounded();
 
     let t = thread::spawn(move || {
         for msg in rx.iter() {

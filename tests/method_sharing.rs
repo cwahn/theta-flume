@@ -1,7 +1,7 @@
-#[cfg(feature = "async")]
-use flume::*;
 
-#[cfg(feature = "async")]
+use theta_flume::*;
+
+
 #[async_std::test]
 async fn sender() {
     let (sender, receiver) = bounded(1);

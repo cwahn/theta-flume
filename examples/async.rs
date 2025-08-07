@@ -1,7 +1,7 @@
-#[cfg(all(feature = "async", not(target_os = "unknown")))]
+#[cfg(not(target_os = "unknown"))]
 #[async_std::main]
 async fn main() {
-    let (tx, rx) = flume::bounded(1);
+    let (tx, rx) = theta_flume::bounded(1);
 
     let t = async_std::task::spawn(async move {
         while let Ok(msg) = rx.recv_async().await {
@@ -17,5 +17,5 @@ async fn main() {
     t.await;
 }
 
-#[cfg(any(not(feature = "async"), target_os = "unknown"))]
+#[cfg(target_os = "unknown")]
 fn main() {}

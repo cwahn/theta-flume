@@ -1,13 +1,13 @@
-#[cfg(all(feature = "async", not(target_os = "unknown")))]
+#[cfg(not(target_os = "unknown"))]
 use {
-    flume::*,
+    theta_flume::*,
     futures::{stream::FuturesUnordered, StreamExt, TryFutureExt, Future},
     futures::task::{Context, Waker, Poll},
     async_std::prelude::FutureExt,
     std::{time::Duration, sync::{atomic::{AtomicUsize, Ordering}, Arc}},
 };
 
-#[cfg(all(feature = "async", not(target_os = "unknown")))]
+#[cfg(not(target_os = "unknown"))]
 #[test]
 fn r#async_recv() {
     let (tx, rx) = unbounded();
@@ -24,7 +24,7 @@ fn r#async_recv() {
     t.join().unwrap();
 }
 
-#[cfg(all(feature = "async", not(target_os = "unknown")))]
+#[cfg(not(target_os = "unknown"))]
 #[test]
 fn r#async_send() {
     let (tx, rx) = bounded(1);
@@ -41,7 +41,7 @@ fn r#async_send() {
     t.join().unwrap();
 }
 
-#[cfg(all(feature = "async", not(target_os = "unknown")))]
+#[cfg(not(target_os = "unknown"))]
 #[test]
 fn r#async_recv_disconnect() {
     let (tx, rx) = bounded::<i32>(0);
@@ -58,7 +58,7 @@ fn r#async_recv_disconnect() {
     t.join().unwrap();
 }
 
-#[cfg(all(feature = "async", not(target_os = "unknown")))]
+#[cfg(not(target_os = "unknown"))]
 #[test]
 fn r#async_send_disconnect() {
     let (tx, rx) = bounded(0);
@@ -75,7 +75,7 @@ fn r#async_send_disconnect() {
     t.join().unwrap();
 }
 
-#[cfg(all(feature = "async", not(target_os = "unknown")))]
+#[cfg(not(target_os = "unknown"))]
 #[test]
 fn r#async_recv_drop_recv() {
     let (tx, rx) = bounded::<i32>(10);
@@ -103,7 +103,7 @@ fn r#async_recv_drop_recv() {
     assert_eq!(t.join().unwrap(), Ok(42))
 }
 
-#[cfg(all(feature = "async", not(target_os = "unknown")))]
+#[cfg(not(target_os = "unknown"))]
 #[async_std::test]
 async fn r#async_send_1_million_no_drop_or_reorder() {
     #[derive(Debug)]
@@ -137,10 +137,10 @@ async fn r#async_send_1_million_no_drop_or_reorder() {
     assert_eq!(count, 1_000_000)
 }
 
-#[cfg(all(feature = "async", not(target_os = "unknown")))]
+#[cfg(not(target_os = "unknown"))]
 #[async_std::test]
 async fn parallel_async_receivers() {
-    let (tx, rx) = flume::unbounded();
+    let (tx, rx) = theta_flume::unbounded();
     let send_fut = async move {
         let n_sends: usize = 100000;
         for _ in 0..n_sends {
@@ -175,10 +175,10 @@ async fn parallel_async_receivers() {
     println!("recv end");
 }
 
-#[cfg(all(feature = "async", not(target_os = "unknown")))]
+#[cfg(not(target_os = "unknown"))]
 #[test]
 fn change_waker() {
-    let (tx, rx) = flume::bounded(1);
+    let (tx, rx) = theta_flume::bounded(1);
     tx.send(()).unwrap();
 
     struct DebugWaker(Arc<AtomicUsize>, Waker);
@@ -246,24 +246,24 @@ fn change_waker() {
     }
 }
 
-#[cfg(all(feature = "async", not(target_os = "unknown")))]
+#[cfg(not(target_os = "unknown"))]
 #[test]
 fn spsc_single_threaded_value_ordering() {
     async fn test() {
-        let (tx, rx) = flume::bounded(4);
+        let (tx, rx) = theta_flume::bounded(4);
         tokio::select! {
         _ = producer(tx) => {},
         _ = consumer(rx) => {},
     }
     }
 
-    async fn producer(tx: flume::Sender<usize>) {
+    async fn producer(tx: theta_flume::Sender<usize>) {
         for i in 0..100 {
             tx.send_async(i).await.unwrap();
         }
     }
 
-    async fn consumer(rx: flume::Receiver<usize>) {
+    async fn consumer(rx: theta_flume::Receiver<usize>) {
         let mut expected = 0;
         while let Ok(value) = rx.recv_async().await {
             assert_eq!(value, expected);

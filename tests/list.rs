@@ -9,9 +9,9 @@ use std::sync::atomic::Ordering;
 use std::thread;
 use std::time::Duration;
 
-use flume::{unbounded, Receiver};
-use flume::{RecvError, RecvTimeoutError, TryRecvError};
-use flume::{SendError, SendTimeoutError, TrySendError};
+use theta_flume::{unbounded, Receiver};
+use theta_flume::{RecvError, RecvTimeoutError, TryRecvError};
+use theta_flume::{SendError, SendTimeoutError, TrySendError};
 use crossbeam_utils::thread::scope;
 use rand::{thread_rng, Rng};
 

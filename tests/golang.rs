@@ -16,7 +16,7 @@
 // use std::thread;
 // use std::time::Duration;
 
-// use flume::{bounded, tick, Receiver, Select, Sender};
+// use theta_flume::{bounded, tick, Receiver, Select, Sender};
 
 // fn ms(ms: u64) -> Duration {
 //     Duration::from_millis(ms)

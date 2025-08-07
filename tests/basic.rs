@@ -1,5 +1,5 @@
 use std::time::{Instant, Duration};
-use flume::*;
+use theta_flume::*;
 
 #[test]
 fn send_recv() {

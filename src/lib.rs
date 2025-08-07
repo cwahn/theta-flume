@@ -1,10 +1,10 @@
-//! # Flume
+//! # Theta-Flume
 //!
 //! A blazingly fast multi-producer, multi-consumer channel.
 //!
 //! *"Do not communicate by sharing memory; instead, share memory by communicating."*
 //!
-//! ## Why Flume?
+//! ## Why Theta-Flume?
 //!
 //! - **Featureful**: Unbounded, bounded and rendezvous queues
 //! - **Fast**: Always faster than `std::sync::mpsc` and sometimes `crossbeam-channel`
@@ -19,7 +19,7 @@
 //! ## Example
 //!
 //! ```
-//! let (tx, rx) = flume::unbounded();
+//! let (tx, rx) = theta_flume::unbounded();
 //!
 //! tx.send(42).unwrap();
 //! assert_eq!(rx.recv().unwrap(), 42);
@@ -30,7 +30,6 @@
 
 #[cfg(feature = "select")]
 pub mod select;
-#[cfg(feature = "async")]
 pub mod r#async;
 
 mod signal;
@@ -1133,7 +1132,7 @@ impl<T> Iterator for IntoIter<T> {
 ///
 /// # Examples
 /// ```
-/// let (tx, rx) = flume::unbounded();
+/// let (tx, rx) = theta_flume::unbounded();
 ///
 /// tx.send(42).unwrap();
 /// assert_eq!(rx.recv().unwrap(), 42);
@@ -1157,14 +1156,14 @@ pub fn unbounded<T>() -> (Sender<T>, Receiver<T>) {
 /// [`Sender::send`] will block (unblocking once a receiver has made space). If blocking behaviour
 /// is not desired, [`Sender::try_send`] may be used.
 ///
-/// Like `std::sync::mpsc`, `flume` supports 'rendezvous' channels. A bounded queue with a maximum capacity of zero
+/// Like `std::sync::mpsc`, `theta-flume` supports 'rendezvous' channels. A bounded queue with a maximum capacity of zero
 /// will block senders until a receiver is available to take the value. You can imagine a rendezvous channel as a
 /// ['Glienicke Bridge'](https://en.wikipedia.org/wiki/Glienicke_Bridge)-style location at which senders and receivers
 /// perform a handshake and transfer ownership of a value.
 ///
 /// # Examples
 /// ```
-/// let (tx, rx) = flume::bounded(32);
+/// let (tx, rx) = theta_flume::bounded(32);
 ///
 /// for i in 1..33 {
 ///     tx.send(i).unwrap();

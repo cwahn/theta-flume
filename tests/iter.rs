@@ -2,7 +2,7 @@
 
 extern crate crossbeam_utils;
 
-use flume::unbounded;
+use theta_flume::unbounded;
 use crossbeam_utils::thread::scope;
 
 #[test]

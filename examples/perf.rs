@@ -2,10 +2,10 @@ fn main() {
     let thread_num = 32;
     let msg_num = 16;
 
-    let (mut main_tx, main_rx) = flume::bounded::<()>(1);
+    let (mut main_tx, main_rx) = theta_flume::bounded::<()>(1);
 
     for _ in 0..thread_num {
-        let (mut tx, rx) = flume::bounded(1);
+        let (mut tx, rx) = theta_flume::bounded(1);
         std::mem::swap(&mut tx, &mut main_tx);
 
         std::thread::spawn(move || {

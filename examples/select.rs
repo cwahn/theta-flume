@@ -1,11 +1,11 @@
 #[cfg(feature = "select")]
-use flume::Selector;
+use theta_flume::Selector;
 
 #[cfg(feature = "select")]
 fn main() {
     // Create two channels
-    let (red_tx, red_rx) = flume::unbounded();
-    let (blue_tx, blue_rx) = flume::unbounded();
+    let (red_tx, red_rx) = theta_flume::unbounded();
+    let (blue_tx, blue_rx) = theta_flume::unbounded();
 
     // Spawn two threads that each send a message into their respective channel
     std::thread::spawn(move || { let _ = red_tx.send("Red"); });

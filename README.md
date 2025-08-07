@@ -1,4 +1,6 @@
-# Flume
+# Theta-Flume
+
+> **⚠️ This is a fork of the [Flume](https://github.com/zesterer/flume) crate, specialized for the [Theta](https://github.com/cwahn/theta) project.**
 
 A blazingly fast multi-producer, multi-consumer channel.
 

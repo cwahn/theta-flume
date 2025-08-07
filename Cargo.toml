@@ -1,7 +1,10 @@
 [package]
-name = "flume"
+name = "theta-flume"
 version = "0.11.1"
-authors = ["Joshua Barretto <joshua.s.barretto@gmail.com>"]
+authors = [
+    "Joshua Barretto <joshua.s.barretto@gmail.com>",
+    "Chanwoo Ahn <cwahn0904@gmail.com>",
+]
 edition = "2018"
 description = "A blazingly fast multi-producer channel"
 repository = "https://github.com/zesterer/flume"
@@ -10,10 +13,7 @@ keywords = ["mpsc", "fifo", "channel", "thread", "mpmc"]
 categories = ["concurrency", "data-structures"]
 license = "Apache-2.0/MIT"
 readme = "README.md"
-exclude = [
-    "/.github",
-    "/misc",
-]
+exclude = ["/.github", "/misc"]
 
 [package.metadata.docs.rs]
 all-features = true
@@ -23,14 +23,13 @@ rustdoc-args = ["--cfg", "docsrs"]
 # Use a spinlock internally (may be faster on some platforms)
 spin = []
 select = []
-async = ["futures-sink", "futures-core"]
 eventual-fairness = ["select", "fastrand"]
-default = ["async", "select", "eventual-fairness"]
+default = ["select", "eventual-fairness"]
 
 [dependencies]
 spin1 = { package = "spin", version = "0.9.8", features = ["mutex"] }
-futures-sink = { version = "0.3", default_features = false, optional = true }
-futures-core = { version = "0.3", default_features = false, optional = true }
+futures-sink = { version = "0.3", default-features = false }
+futures-core = { version = "0.3", default-features = false }
 fastrand = { version = "2.3", features = ["std", "js"], optional = true }
 
 [dev-dependencies]
