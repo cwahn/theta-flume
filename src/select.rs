@@ -64,8 +64,8 @@ impl std::error::Error for SelectError {}
 /// let (tx1, rx1) = theta_flume::unbounded();
 ///
 /// std::thread::spawn(move || {
-///     tx0.send_blocking(true).unwrap();
-///     tx1.send_blocking(42).unwrap();
+///     tx0.send(true).unwrap();
+///     tx1.send(42).unwrap();
 /// });
 ///
 /// theta_flume::Selector::new()
@@ -166,7 +166,7 @@ impl<'a, T> Selector<'a, T> {
             }
 
             fn poll(&mut self) -> Option<T> {
-                let res = if self.sender.shared.is_disconnected() {
+                let res = if self.sender.shared.is_closed() {
                     // Check the hook one last time
                     if let Some(msg) = self.hook.as_ref()?.try_take() {
                         Err(SendError(msg))
@@ -268,7 +268,7 @@ impl<'a, T> Selector<'a, T> {
                 let res = if let Ok(msg) = self.receiver.try_recv() {
                     self.received = true;
                     Some(msg)
-                } else if self.receiver.shared.is_disconnected() {
+                } else if self.receiver.shared.is_closed() {
                     None
                 } else {
                     return None;

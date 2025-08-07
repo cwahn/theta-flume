@@ -114,7 +114,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- `is_disconnected`, `is_empty`, `is_full`, `len`, and `capacity` on future types
+- `is_closed`, `is_empty`, `is_full`, `len`, and `capacity` on future types
 
 # [0.10.4] - 2021-04-12
 

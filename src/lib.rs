@@ -21,7 +21,7 @@
 //! ```
 //! let (tx, rx) = theta_flume::unbounded();
 //!
-//! tx.send_blocking(42).unwrap();
+//! tx.send(42).unwrap();
 //! assert_eq!(rx.recv_blocking().unwrap(), 42);
 //! ```
 
@@ -501,7 +501,7 @@ impl<T> Shared<T> {
     ) -> R {
         let mut chan = wait_lock(&self.chan);
 
-        if self.is_disconnected() {
+        if self.is_closed() {
             Err(TrySendTimeoutError::Disconnected(msg)).into()
         } else if !chan.waiting.is_empty() {
             let mut msg = Some(msg);
@@ -588,7 +588,7 @@ impl<T> Shared<T> {
                             }
                             hook.try_take()
                                 .map(|msg| {
-                                    if self.is_disconnected() {
+                                    if self.is_closed() {
                                         Err(TrySendTimeoutError::Disconnected(msg))
                                     } else {
                                         Err(TrySendTimeoutError::Timeout(msg))
@@ -620,7 +620,7 @@ impl<T> Shared<T> {
         if let Some(msg) = chan.queue.pop_front() {
             drop(chan);
             Ok(msg).into()
-        } else if self.is_disconnected() {
+        } else if self.is_closed() {
             drop(chan);
             Err(TryRecvTimeoutError::Disconnected).into()
         } else if should_block {
@@ -656,7 +656,7 @@ impl<T> Shared<T> {
                             match hook.try_take() {
                                 Some(msg) => Ok(msg),
                                 None => {
-                                    let disconnected = self.is_disconnected(); // Check disconnect *before* msg
+                                    let disconnected = self.is_closed(); // Check disconnect *before* msg
                                     if let Some(msg) = wait_lock(&self.chan).queue.pop_front() {
                                         Ok(msg)
                                     } else if disconnected {
@@ -693,7 +693,7 @@ impl<T> Shared<T> {
         });
     }
 
-    fn is_disconnected(&self) -> bool {
+    fn is_closed(&self) -> bool {
         self.disconnected.load(Ordering::SeqCst)
     }
 
@@ -752,7 +752,7 @@ impl<T> Sender<T> {
     /// If the channel is bounded and is full, this method will block until space is available
     /// or all receivers have been dropped. If the channel is unbounded, this method will not
     /// block.
-    pub fn send_blocking(&self, msg: T) -> Result<(), SendError<T>> {
+    pub fn send(&self, msg: T) -> Result<(), SendError<T>> {
         self.shared
             .send_sync(msg, Some(None))
             .map_err(|err| match err {
@@ -765,11 +765,7 @@ impl<T> Sender<T> {
     /// or the deadline has passed. If the channel is bounded and is full, this method will
     /// block until space is available, the deadline is reached, or all receivers have been
     /// dropped.
-    pub fn send_blocking_deadline(
-        &self,
-        msg: T,
-        deadline: Instant,
-    ) -> Result<(), SendTimeoutError<T>> {
+    pub fn send_deadline(&self, msg: T, deadline: Instant) -> Result<(), SendTimeoutError<T>> {
         self.shared
             .send_sync(msg, Some(Some(deadline)))
             .map_err(|err| match err {
@@ -783,13 +779,13 @@ impl<T> Sender<T> {
     /// or the timeout has expired. If the channel is bounded and is full, this method will
     /// block until space is available, the timeout has expired, or all receivers have been
     /// dropped.
-    pub fn send_blocking_timeout(&self, msg: T, dur: Duration) -> Result<(), SendTimeoutError<T>> {
-        self.send_blocking_deadline(msg, Instant::now().checked_add(dur).unwrap())
+    pub fn send_timeout(&self, msg: T, dur: Duration) -> Result<(), SendTimeoutError<T>> {
+        self.send_deadline(msg, Instant::now().checked_add(dur).unwrap())
     }
 
     /// Returns true if all receivers for this channel have been dropped.
-    pub fn is_disconnected(&self) -> bool {
-        self.shared.is_disconnected()
+    pub fn is_closed(&self) -> bool {
+        self.shared.is_closed()
     }
 
     /// Returns true if the channel is empty.
@@ -907,6 +903,11 @@ impl<T> WeakSender<T> {
             })
             .map(|shared| Sender { shared })
     }
+
+    /// Check sender count without upgrading the `WeakSender`.
+    pub fn strong_count(&self) -> usize {
+        self.shared.strong_count()
+    }
 }
 
 impl<T> fmt::Debug for WeakSender<T> {
@@ -1002,8 +1003,8 @@ impl<T> Receiver<T> {
     }
 
     /// Returns true if all senders for this channel have been dropped.
-    pub fn is_disconnected(&self) -> bool {
-        self.shared.is_disconnected()
+    pub fn is_closed(&self) -> bool {
+        self.shared.is_closed()
     }
 
     /// Returns true if the channel is empty.
@@ -1194,7 +1195,7 @@ impl<T> Iterator for IntoIter<T> {
 /// ```
 /// let (tx, rx) = theta_flume::unbounded();
 ///
-/// tx.send_blocking(42).unwrap();
+/// tx.send(42).unwrap();
 /// assert_eq!(rx.recv_blocking().unwrap(), 42);
 /// ```
 pub fn unbounded<T>() -> (Sender<T>, Receiver<T>) {
@@ -1226,7 +1227,7 @@ pub fn unbounded_with_id<T>(id: Uuid) -> (Sender<T>, Receiver<T>) {
 /// may be cloned.
 ///
 /// Unlike an [`unbounded`] channel, if there is no space left for new messages, calls to
-/// [`Sender::send_blocking`] will block (unblocking once a receiver has made space). If blocking behaviour
+/// [`Sender::send`] will block (unblocking once a receiver has made space). If blocking behaviour
 /// is not desired, [`Sender::try_send`] may be used.
 ///
 /// Like `std::sync::mpsc`, `theta-flume` supports 'rendezvous' channels. A bounded queue with a maximum capacity of zero
@@ -1239,7 +1240,7 @@ pub fn unbounded_with_id<T>(id: Uuid) -> (Sender<T>, Receiver<T>) {
 /// let (tx, rx) = theta_flume::bounded(32);
 ///
 /// for i in 1..33 {
-///     tx.send_blocking(i).unwrap();
+///     tx.send(i).unwrap();
 /// }
 /// assert!(tx.try_send(33).is_err());
 ///

@@ -35,7 +35,7 @@ impl<T: Send + Debug + Default + 'static> Sender for theta_flume::Sender<T> {
     }
 
     fn send(&self, msg: T) {
-        theta_flume::Sender::send_blocking(self, msg).unwrap();
+        theta_flume::Sender::send(self, msg).unwrap();
     }
 }
 

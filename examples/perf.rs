@@ -10,7 +10,7 @@ fn main() {
 
         std::thread::spawn(move || {
             for msg in rx.iter() {
-                tx.send_blocking(msg).unwrap();
+                tx.send(msg).unwrap();
             }
         });
     }
@@ -19,7 +19,7 @@ fn main() {
         let main_tx = main_tx.clone();
         std::thread::spawn(move || {
             for _ in 0..msg_num {
-                main_tx.send_blocking(Default::default()).unwrap();
+                main_tx.send(Default::default()).unwrap();
             }
         });
 

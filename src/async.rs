@@ -90,7 +90,7 @@ impl<T> Sender<T> {
     ///
     /// In the current implementation, the returned future will not yield to the async runtime if the
     /// channel is unbounded. This may change in later versions.
-    pub fn send(&self, item: T) -> SendFut<T> {
+    pub fn send_async(&self, item: T) -> SendFut<T> {
         SendFut {
             sender: OwnedOrRef::Ref(&self),
             hook: Some(SendState::NotYetSent(item)),
@@ -172,9 +172,9 @@ impl<'a, T> SendFut<'a, T> {
         }
     }
 
-    /// See [`Sender::is_disconnected`].
-    pub fn is_disconnected(&self) -> bool {
-        self.sender.is_disconnected()
+    /// See [`Sender::is_closed`].
+    pub fn is_closed(&self) -> bool {
+        self.sender.is_closed()
     }
 
     /// See [`Sender::is_empty`].
@@ -211,7 +211,7 @@ impl<'a, T> Future for SendFut<'a, T> {
         if let Some(SendState::QueuedItem(hook)) = self.hook.as_ref() {
             if hook.is_empty() {
                 Poll::Ready(Ok(()))
-            } else if self.sender.shared.is_disconnected() {
+            } else if self.sender.shared.is_closed() {
                 let item = hook.try_take();
                 self.hook = None;
                 match item {
@@ -255,7 +255,7 @@ impl<'a, T> Future for SendFut<'a, T> {
 
 impl<'a, T> FusedFuture for SendFut<'a, T> {
     fn is_terminated(&self) -> bool {
-        self.sender.shared.is_disconnected()
+        self.sender.shared.is_closed()
     }
 }
 
@@ -270,9 +270,9 @@ impl<'a, T> SendSink<'a, T> {
         &self.0.sender
     }
 
-    /// See [`Sender::is_disconnected`].
-    pub fn is_disconnected(&self) -> bool {
-        self.0.is_disconnected()
+    /// See [`Sender::is_closed`].
+    pub fn is_closed(&self) -> bool {
+        self.0.is_closed()
     }
 
     /// See [`Sender::is_empty`].
@@ -425,7 +425,7 @@ impl<'a, T> RecvFut<'a, T> {
             }
             // To avoid a missed wakeup, re-check disconnect status here because the channel might have
             // gotten shut down before we had a chance to push our hook
-            if self.receiver.shared.is_disconnected() {
+            if self.receiver.shared.is_closed() {
                 // And now, to avoid a race condition between the first recv attempt and the disconnect check we
                 // just performed, attempt to recv again just in case we missed something.
                 Poll::Ready(
@@ -458,9 +458,9 @@ impl<'a, T> RecvFut<'a, T> {
         }
     }
 
-    /// See [`Receiver::is_disconnected`].
-    pub fn is_disconnected(&self) -> bool {
-        self.receiver.is_disconnected()
+    /// See [`Receiver::is_closed`].
+    pub fn is_closed(&self) -> bool {
+        self.receiver.is_closed()
     }
 
     /// See [`Receiver::is_empty`].
@@ -506,7 +506,7 @@ impl<'a, T> Future for RecvFut<'a, T> {
 
 impl<'a, T> FusedFuture for RecvFut<'a, T> {
     fn is_terminated(&self) -> bool {
-        self.receiver.shared.is_disconnected() && self.receiver.shared.is_empty()
+        self.receiver.shared.is_closed() && self.receiver.shared.is_empty()
     }
 }
 
@@ -516,9 +516,9 @@ impl<'a, T> FusedFuture for RecvFut<'a, T> {
 pub struct RecvStream<'a, T>(RecvFut<'a, T>);
 
 impl<'a, T> RecvStream<'a, T> {
-    /// See [`Receiver::is_disconnected`].
-    pub fn is_disconnected(&self) -> bool {
-        self.0.is_disconnected()
+    /// See [`Receiver::is_closed`].
+    pub fn is_closed(&self) -> bool {
+        self.0.is_closed()
     }
 
     /// See [`Receiver::is_empty`].

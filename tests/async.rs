@@ -20,7 +20,7 @@ fn r#async_recv() {
 
     let t = std::thread::spawn(move || {
         std::thread::sleep(std::time::Duration::from_millis(250));
-        tx.send_blocking(42u32).unwrap();
+        tx.send(42u32).unwrap();
     });
 
     async_std::task::block_on(async {
@@ -41,7 +41,7 @@ fn r#async_send() {
     });
 
     async_std::task::block_on(async {
-        tx.send(42u32).await.unwrap();
+        tx.send_async(42u32).await.unwrap();
     });
 
     t.join().unwrap();
@@ -75,7 +75,7 @@ fn r#async_send_disconnect() {
     });
 
     async_std::task::block_on(async {
-        assert_eq!(tx.send(42u32).await, Err(SendError(42)));
+        assert_eq!(tx.send_async(42u32).await, Err(SendError(42)));
     });
 
     t.join().unwrap();
@@ -99,7 +99,7 @@ fn r#async_recv_drop_recv() {
 
     std::thread::sleep(std::time::Duration::from_millis(500));
 
-    tx.send_blocking(42).unwrap();
+    tx.send(42).unwrap();
 
     drop(recv_fut);
 
@@ -129,10 +129,10 @@ async fn r#async_send_1_million_no_drop_or_reorder() {
     });
 
     for next in 0..1_000_000 {
-        tx.send_blocking(Message::Increment { old: next }).unwrap();
+        tx.send(Message::Increment { old: next }).unwrap();
     }
 
-    tx.send_blocking(Message::ReturnCount).unwrap();
+    tx.send(Message::ReturnCount).unwrap();
 
     let count = t.await;
     assert_eq!(count, 1_000_000)
@@ -145,7 +145,7 @@ async fn parallel_async_receivers() {
     let send_fut = async move {
         let n_sends: usize = 100000;
         for _ in 0..n_sends {
-            tx.send(()).await.unwrap();
+            tx.send_async(()).await.unwrap();
         }
     };
 
@@ -178,7 +178,7 @@ async fn parallel_async_receivers() {
 #[test]
 fn change_waker() {
     let (tx, rx) = theta_flume::bounded(1);
-    tx.send_blocking(()).unwrap();
+    tx.send(()).unwrap();
 
     struct DebugWaker(Arc<AtomicUsize>, Waker);
 
@@ -203,7 +203,7 @@ fn change_waker() {
 
     // Check that the waker is correctly updated when sending tasks change their wakers
     {
-        let send_fut = tx.send(());
+        let send_fut = tx.send_async(());
         futures::pin_mut!(send_fut);
 
         let (waker1, waker2) = (DebugWaker::new(), DebugWaker::new());
@@ -237,7 +237,7 @@ fn change_waker() {
         assert_eq!(recv_fut.poll(&mut waker2.ctx()), Poll::Pending);
 
         // Wake the future
-        tx.send_blocking(()).unwrap();
+        tx.send(()).unwrap();
 
         // Check that waker2 was woken and waker1 was not
         assert_eq!(waker1.woken(), 0);
@@ -258,7 +258,7 @@ fn spsc_single_threaded_value_ordering() {
 
     async fn producer(tx: theta_flume::Sender<usize>) {
         for i in 0..100 {
-            tx.send(i).await.unwrap();
+            tx.send_async(i).await.unwrap();
         }
     }
 

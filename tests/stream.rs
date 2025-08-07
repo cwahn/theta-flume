@@ -14,7 +14,7 @@ fn stream_recv() {
 
     let t = std::thread::spawn(move || {
         std::thread::sleep(std::time::Duration::from_millis(250));
-        tx.send_blocking(42u32).unwrap();
+        tx.send(42u32).unwrap();
         println!("sent");
     });
 
@@ -34,7 +34,7 @@ fn stream_recv_disconnect() {
     let (tx, rx) = bounded::<i32>(0);
 
     let t = std::thread::spawn(move || {
-        let _ = tx.send_blocking(42);
+        let _ = tx.send(42);
         std::thread::sleep(std::time::Duration::from_millis(250));
         drop(tx)
     });
@@ -68,7 +68,7 @@ fn stream_recv_drop_recv() {
 
     std::thread::sleep(std::time::Duration::from_millis(500));
 
-    tx.send_blocking(42).unwrap();
+    tx.send(42).unwrap();
 
     drop(stream);
 
@@ -117,10 +117,10 @@ async fn stream_send_1_million_no_drop_or_reorder() {
     });
 
     for next in 0..1_000_000 {
-        tx.send_blocking(Message::Increment { old: next }).unwrap();
+        tx.send(Message::Increment { old: next }).unwrap();
     }
 
-    tx.send_blocking(Message::ReturnCount).unwrap();
+    tx.send(Message::ReturnCount).unwrap();
 
     let count = t.await;
     assert_eq!(count, 1_000_000)
@@ -134,7 +134,7 @@ async fn parallel_streams_and_async_recv() {
     let send_fut = async move {
         let n_sends: usize = 100000;
         for _ in 0..n_sends {
-            tx.send(()).await.unwrap();
+            tx.send_async(()).await.unwrap();
         }
     };
 
@@ -202,9 +202,9 @@ fn stream_no_double_wake() {
     let _ = Pin::new(&mut stream).poll_next(cx);
 
     // send multiple items
-    tx.send_blocking(()).unwrap();
-    tx.send_blocking(()).unwrap();
-    tx.send_blocking(()).unwrap();
+    tx.send(()).unwrap();
+    tx.send(()).unwrap();
+    tx.send(()).unwrap();
 
     // verify that stream is only woken up once.
     assert_eq!(count.load(Ordering::SeqCst), 1);

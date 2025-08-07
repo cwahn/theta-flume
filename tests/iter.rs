@@ -16,12 +16,12 @@ fn nested_recv_iter() {
             for x in r.iter() {
                 acc += x;
             }
-            total_s.send_blocking(acc).unwrap();
+            total_s.send(acc).unwrap();
         });
 
-        s.send_blocking(3).unwrap();
-        s.send_blocking(1).unwrap();
-        s.send_blocking(2).unwrap();
+        s.send(3).unwrap();
+        s.send(1).unwrap();
+        s.send(2).unwrap();
         drop(s);
         assert_eq!(total_r.recv_blocking().unwrap(), 6);
     })
@@ -43,13 +43,13 @@ fn recv_iter_break() {
                     count += x;
                 }
             }
-            count_s.send_blocking(count).unwrap();
+            count_s.send(count).unwrap();
         });
 
-        s.send_blocking(2).unwrap();
-        s.send_blocking(2).unwrap();
-        s.send_blocking(2).unwrap();
-        let _ = s.send_blocking(2);
+        s.send(2).unwrap();
+        s.send(2).unwrap();
+        s.send(2).unwrap();
+        let _ = s.send(2);
         drop(s);
         assert_eq!(count_r.recv_blocking().unwrap(), 4);
     })
@@ -71,12 +71,12 @@ fn recv_try_iter() {
                         return;
                     }
                 }
-                request_s.send_blocking(()).unwrap();
+                request_s.send(()).unwrap();
             }
         });
 
         for _ in request_r.iter() {
-            if response_s.send_blocking(2).is_err() {
+            if response_s.send(2).is_err() {
                 break;
             }
         }
@@ -88,8 +88,8 @@ fn recv_try_iter() {
 fn recv_into_iter_owned() {
     let mut iter = {
         let (s, r) = unbounded::<i32>();
-        s.send_blocking(1).unwrap();
-        s.send_blocking(2).unwrap();
+        s.send(1).unwrap();
+        s.send(2).unwrap();
         r.into_iter()
     };
 
@@ -101,8 +101,8 @@ fn recv_into_iter_owned() {
 #[test]
 fn recv_into_iter_borrowed() {
     let (s, r) = unbounded::<i32>();
-    s.send_blocking(1).unwrap();
-    s.send_blocking(2).unwrap();
+    s.send(1).unwrap();
+    s.send(2).unwrap();
     drop(s);
 
     let mut iter = (&r).into_iter();

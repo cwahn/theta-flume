@@ -6,22 +6,22 @@ use theta_flume::*;
 async fn sender() {
     let (sender, receiver) = bounded(1);
 
-    let sender_fut = sender.send(());
-    assert_eq!(sender.is_disconnected(), sender_fut.is_disconnected());
+    let sender_fut = sender.send_async(());
+    assert_eq!(sender.is_closed(), sender_fut.is_closed());
     assert_eq!(sender.is_empty(), sender_fut.is_empty());
     assert_eq!(sender.is_full(), sender_fut.is_full());
     assert_eq!(sender.len(), sender_fut.len());
     assert_eq!(sender.capacity(), sender_fut.capacity());
 
     let sender_sink = sender.sink();
-    assert_eq!(sender.is_disconnected(), sender_sink.is_disconnected());
+    assert_eq!(sender.is_closed(), sender_sink.is_closed());
     assert_eq!(sender.is_empty(), sender_sink.is_empty());
     assert_eq!(sender.is_full(), sender_sink.is_full());
     assert_eq!(sender.len(), sender_sink.len());
     assert_eq!(sender.capacity(), sender_sink.capacity());
 
     let receiver_fut = receiver.recv();
-    assert_eq!(receiver.is_disconnected(), receiver_fut.is_disconnected());
+    assert_eq!(receiver.is_closed(), receiver_fut.is_closed());
     assert_eq!(receiver.is_empty(), receiver_fut.is_empty());
     assert_eq!(receiver.is_full(), receiver_fut.is_full());
     assert_eq!(receiver.len(), receiver_fut.len());
@@ -29,8 +29,8 @@ async fn sender() {
 
     let receiver_stream = receiver.stream();
     assert_eq!(
-        receiver.is_disconnected(),
-        receiver_stream.is_disconnected()
+        receiver.is_closed(),
+        receiver_stream.is_closed()
     );
     assert_eq!(receiver.is_empty(), receiver_stream.is_empty());
     assert_eq!(receiver.is_full(), receiver_stream.is_full());
