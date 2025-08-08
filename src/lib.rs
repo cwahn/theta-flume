@@ -43,6 +43,7 @@ use crate::signal::{Signal, SyncSignal};
 #[cfg(feature = "spin")]
 use spin1::{Mutex as Spinlock, MutexGuard as SpinlockGuard};
 use std::fmt::Formatter;
+use std::panic::{RefUnwindSafe, UnwindSafe};
 use std::{
     collections::VecDeque,
     fmt,
@@ -726,6 +727,10 @@ impl<T> Shared<T> {
     }
 }
 
+// !!! TEMP work around to implement Unwind safe, Need investigation this might not be safe on panic
+impl<T> UnwindSafe for Shared<T> {}
+impl<T> RefUnwindSafe for Shared<T> {}
+
 /// A transmitting end of a channel.
 pub struct Sender<T> {
     shared: Arc<Shared<T>>,
@@ -1208,7 +1213,7 @@ pub fn unbounded<T>() -> (Sender<T>, Receiver<T>) {
     )
 }
 
-/// Create a channel with no maximum capacity and a specific ID.
+/// Create an unbounded channel with no maximum capacity and a specific ID.
 pub fn unbounded_with_id<T>(id: Uuid) -> (Sender<T>, Receiver<T>) {
     let shared = Arc::new(Shared::new(id, None));
     (
@@ -1217,6 +1222,12 @@ pub fn unbounded_with_id<T>(id: Uuid) -> (Sender<T>, Receiver<T>) {
         },
         Receiver { shared },
     )
+}
+
+/// Create a unbounded channel with Uuid::nil()
+///
+pub fn unbounded_anonymous<T>() -> (Sender<T>, Receiver<T>) {
+    unbounded_with_id(Uuid::nil())
 }
 
 /// Create a channel with a maximum capacity.
@@ -1256,7 +1267,8 @@ pub fn bounded<T>(cap: usize) -> (Sender<T>, Receiver<T>) {
     )
 }
 
-/// Create a channel with a maximum capacity and a specific ID.
+/// Create a bounded channel with a maximum capacity and a specific ID.
+///
 pub fn bounded_with_id<T>(id: Uuid, cap: usize) -> (Sender<T>, Receiver<T>) {
     let shared = Arc::new(Shared::new(id, Some(cap)));
     (
@@ -1265,4 +1277,10 @@ pub fn bounded_with_id<T>(id: Uuid, cap: usize) -> (Sender<T>, Receiver<T>) {
         },
         Receiver { shared },
     )
+}
+
+/// Create a bounded channel with Uuid::nil()
+///
+pub fn bounded_anonymous<T>(cap: usize) -> (Sender<T>, Receiver<T>) {
+    bounded_with_id(Uuid::nil(), cap)
 }
