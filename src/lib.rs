@@ -76,7 +76,7 @@ impl<T> fmt::Debug for SendError<T> {
 
 impl<T> fmt::Display for SendError<T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        "send error".fmt(f)
+        "sending on a closed channel".fmt(f)
     }
 }
 
