@@ -279,7 +279,7 @@ impl<T, S: ?Sized + Signal> Hook<T, S> {
         Arc::new(Self(Some(Spinlock::new(msg)), signal))
     }
 
-    fn lock(&self) -> Option<SpinlockGuard<'_, Option<T>>> {
+    fn lock(&self) -> Option<SpinlockGuard<'_, Optin<T>>> {
         self.0.as_ref().map(|s| s.lock())
     }
 }
@@ -742,6 +742,11 @@ impl<T> Sender<T> {
         self.shared.id
     }
 
+    /// Underlying pointer address, which could serve as a identifier for channel instance
+    pub fn ptr_id(&self) -> usize {
+        Arc::as_ptr(&self.shared) as usize
+    }
+
     /// Attempt to send a value into the channel. If the channel is bounded and full, or all
     /// receivers have been dropped, an error is returned. If the channel associated with this
     /// sender is unbounded, this method has the same behaviour as [`Sender::send`].
@@ -943,6 +948,11 @@ impl<T> Receiver<T> {
     /// Possibley manually designated identifier for the channel
     pub fn id(&self) -> Uuid {
         self.shared.id
+    }
+
+    /// Underlying pointer address, which could serve as a identifier for channel instance
+    pub fn ptr_id(&self) -> usize {
+        Arc::as_ptr(&self.shared) as usize
     }
 
     /// Attempt to fetch an incoming value from the channel associated with this receiver,
