@@ -1,6 +1,6 @@
 [package]
 name = "theta-flume"
-version = "0.11.5"
+version = "0.11.6"
 authors = [
     "Joshua Barretto <joshua.s.barretto@gmail.com>",
     "Chanwoo Ahn <cwahn0904@gmail.com>",
