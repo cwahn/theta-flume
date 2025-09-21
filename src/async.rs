@@ -90,7 +90,7 @@ impl<T> Sender<T> {
     ///
     /// In the current implementation, the returned future will not yield to the async runtime if the
     /// channel is unbounded. This may change in later versions.
-    pub fn send_async(&self, item: T) -> SendFut<T> {
+    pub fn send_async(&self, item: T) -> SendFut<'_, T> {
         SendFut {
             sender: OwnedOrRef::Ref(&self),
             hook: Some(SendState::NotYetSent(item)),

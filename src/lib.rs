@@ -40,8 +40,6 @@ pub use select::Selector;
 use uuid::Uuid;
 
 use crate::signal::{Signal, SyncSignal};
-#[cfg(feature = "spin")]
-use spin1::{Mutex as Spinlock, MutexGuard as SpinlockGuard};
 use std::fmt::Formatter;
 use std::panic::{RefUnwindSafe, UnwindSafe};
 use std::{
@@ -52,8 +50,12 @@ use std::{
         atomic::{AtomicBool, AtomicUsize, Ordering},
         Arc, Weak,
     },
-    thread,
     time::{Duration, Instant},
+};
+#[cfg(feature = "spin")]
+use {
+    spin1::{Mutex as Spinlock, MutexGuard as SpinlockGuard},
+    std::thread,
 };
 
 /// An error that may be emitted when attempting to send a value into a channel on a sender when
@@ -913,11 +915,6 @@ impl<T> WeakSender<T> {
             })
             .map(|shared| Sender { shared })
     }
-
-    /// Check sender count without upgrading the `WeakSender`.
-    pub fn strong_count(&self) -> usize {
-        self.shared.strong_count()
-    }
 }
 
 impl<T> fmt::Debug for WeakSender<T> {
@@ -993,20 +990,20 @@ impl<T> Receiver<T> {
     /// when all senders have been dropped.
     ///
     /// You can also create a self-owned iterator with [`Receiver::into_iter`].
-    pub fn iter(&self) -> Iter<T> {
+    pub fn iter(&self) -> Iter<'_, T> {
         Iter { receiver: &self }
     }
 
     /// A non-blocking iterator over the values received on the channel that finishes iteration
     /// when all senders have been dropped or the channel is empty.
-    pub fn try_iter(&self) -> TryIter<T> {
+    pub fn try_iter(&self) -> TryIter<'_, T> {
         TryIter { receiver: &self }
     }
 
     /// Take all msgs currently sitting in the channel and produce an iterator over them. Unlike
     /// `try_iter`, the iterator will not attempt to fetch any more values from the channel once
     /// the function has been called.
-    pub fn drain(&self) -> Drain<T> {
+    pub fn drain(&self) -> Drain<'_, T> {
         let mut chan = wait_lock(&self.shared.chan);
         chan.pull_pending(false);
         let queue = std::mem::take(&mut chan.queue);
