@@ -891,6 +891,11 @@ pub struct WeakSender<T> {
 }
 
 impl<T> WeakSender<T> {
+    /// Underlying pointer address, which could serve as a identifier for channel instance
+    pub fn ptr_id(&self) -> usize {
+        self.shared.as_ptr() as usize
+    }
+
     /// Tries to upgrade the `WeakSender` to a [`Sender`], in order to send messages.
     ///
     /// Returns `None` if the channel was closed already. Note that a `Some` return value
